@@ -7,7 +7,7 @@ require_relative 'zorder'
 class GameWindow < Gosu::Window
   def initialize
     super 640, 480, false
-    self.caption = 'Joust'
+    self.caption = 'Space Stars Shooter'
 
     @background_image = Gosu::Image.new("media/space.png", 
                                         :tileable => true)
