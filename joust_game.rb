@@ -18,7 +18,7 @@ class JoustGame < Gosu::Window
 
     @background_image = Gosu::Image.new(SCREENS[0],
                                         :tileable => true)
-    @player = Player.new
+    @player = Player.new(WIDTH, HEIGHT)
   end
 
   def update

@@ -9,10 +9,13 @@ class Player
   # TODO: Need to extract sprites for player2
   STORK = nil
 
+  # Defines the four states of motion
+  WALKING, BRAKING, FLAPPING, FALLING = *1..4
+
   # Define frames in spritesheet used for each movement
-  WALK = 0..3
-  BRAKE = 4
-  FLAP = 5..6
+  WALK_FRAMES = *0..3
+  BRAKE_FRAMES = 4
+  FLAP_FRAMES = *5..6
 
   # Directions
   LEFT = -1
@@ -21,7 +24,12 @@ class Player
   # Used to make walking animation feel more natural
   SPEED_OFFSET = 25.0
 
-  def initialize(player_num = 1, single_player = true)
+  MAX_XVEL = 15.0
+  X_ACCEL = 0.3
+  Y_ACCEL = 1.3
+
+  def initialize(canvas_width, canvas_height, player_num = 1, 
+                 single_player = true)
     if single_player
       @up_key = Gosu::KbSpace
     else
@@ -30,35 +38,83 @@ class Player
     @left_key = player_num == 1 ? Gosu::KbLeft : Gosu::KbA
     @right_key = player_num == 1 ? Gosu::KbRight : Gosu::KbD
 
+    @canvas_height = canvas_height
+    @canvas_width = canvas_width
+
     @x = @y = 20
-    @xvel = 10
+    @xvel = 0.0
+    @yvel = 0.0
     @dir = RIGHT
-    # ac is animation counter
-    @ac = 0.0
+    @state = WALKING
+    # fc is frame counter for animation
+    @fc = 0.0
 
     @bird_frames = player_num == 1 ? OSTRICH : STORK
 
   end
 
   def update
-    if Gosu::button_down? @right_key
-      @dir = RIGHT
-      walk
-    elsif Gosu::button_down? @left_key
-      @dir = LEFT
-      walk
+    @dir = @xvel < 0 ? LEFT : RIGHT
+    @state = FALLING if @yvel < 0
+
+    case @state
+    when BRAKING
+      # Range needed because of trailing digits in value
+      if ((-1 * X_ACCEL)..X_ACCEL).include? @xvel
+        @state = WALKING
+        @fc = WALK_FRAMES[0]
+      else
+        @fc = BRAKE_FRAMES
+      end
+    when WALKING
+      @fc += @dir * @xvel / SPEED_OFFSET
+      @fc %= WALK_FRAMES.size
+    when FALLING
+      @fc = FLAP_FRAMES[1]
+    else 
+      @fc += 0.25
     end
-  end
 
-  def walk 
-    @ac += 1.0 / (SPEED_OFFSET / @xvel)
-    @ac %= WALK.size
+    if Gosu::button_down? @right_key
+      @xvel += X_ACCEL unless @xvel >= MAX_XVEL
+      @state = BRAKING if @dir == LEFT && @state == WALKING
+    end
+    if Gosu::button_down? @left_key
+      @xvel -= X_ACCEL unless @xvel <= (-1 * MAX_XVEL)
+      @state = BRAKING if @dir == RIGHT && @state == WALKING
+    end
+    if Gosu::button_down? @up_key
+      @yvel = Y_ACCEL
+      @fc = FLAP_FRAMES[0]
+      @state = FLAPPING
+    end
 
-    @x += @dir * (@xvel / SPEED_OFFSET * 2.3)
+    if ((@state == FLAPPING) && 
+       !((FLAP_FRAMES[0]...FLAP_FRAMES[1]).include? @fc))
+      @state = FALLING
+      @fc = FLAP_FRAMES[1]
+    end
+
+    @x += @xvel / SPEED_OFFSET * 2.45
+    @y -= @yvel
+
+    @x %= @canvas_width
+    @y %= @canvas_height
+
+    if @state == FALLING
+      @yvel -= Y_ACCEL / 2
+    end
+
+    # NOTE: Take out, for testing now
+    if @yvel <= -5
+      @yvel = 0.0
+      @state = WALKING
+    end
+
   end
 
   def draw(scale = 1)
-    @bird = @bird_frames[@ac.floor]
+    @bird = @bird_frames[@fc.floor]
     @bird.draw(@x + (@dir == RIGHT ? 0 : @bird.width), # Offset for flip
                @y, ZOrder::Bird, @dir * scale, 1 * scale)
   end
