@@ -51,6 +51,8 @@ class Player
 
     @bird_frames = player_num == 1 ? OSTRICH : STORK
 
+    # HACK: Is there a better way?
+    @up_pressed_before = false
   end
 
   def update
@@ -84,9 +86,14 @@ class Player
       @state = BRAKING if @dir == RIGHT && @state == WALKING
     end
     if Gosu::button_down? @up_key
-      @yvel = Y_ACCEL
-      @fc = FLAP_FRAMES[0]
-      @state = FLAPPING
+      unless @up_pressed_before
+        @yvel = Y_ACCEL
+        @fc = FLAP_FRAMES[0]
+        @state = FLAPPING
+        @up_pressed_before = true
+      end
+    else
+      @up_pressed_before = false
     end
 
     if ((@state == FLAPPING) && 
